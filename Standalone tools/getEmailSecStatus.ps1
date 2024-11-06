@@ -3,8 +3,12 @@ if (-not (Get-Module -Name DomainHealthChecker -ListAvailable)) {
     Install-Module -Name DomainHealthChecker -Scope CurrentUser -Force -AllowClobber
 }
 
+Write-Host "Required CSV Format is: DomainName,IsDefault,IsVerified"
+Write-Host "Valuetypes is: DomainName=FQDN/String,IsDefault=Boolean,IsVerified=Boolean"
+$filePath = Read-Host "Please enter path to CSV file following the required format"
+
 # Import CSV with format DomainName,IsDefault,IsVerified
-$domainsToCheck = Import-Csv -Path "RegisteredDomains.csv"
+$domainsToCheck = Import-Csv -Path $filePath
 
 # Create an array to hold domain security information
 $domainSecList = @()
@@ -36,8 +40,16 @@ $domainsToCheck | ForEach-Object {
     $domainSecList += $domainSecInfo
 }
 
+# Check that the output directory exists
+if (-not (Test-Path -Path "C:\temp")) {
+    New-Item -Path "C:\temp" -ItemType Directory
+}
+
 # Export the domain information to a CSV file
-$domainSecList | Export-Csv -Path "DomainSecurityStatus.csv" -NoTypeInformation
+$currentDateTime = Get-Date -Format "HH-mm-dd-MM-yyyy"
+$path = "C:\temp\emailsec-status-$currentDateTime.csv"
+$domainSecList | Export-Csv -Path $path -NoTypeInformation
+Write-Output "Email Security Status report has been generated and saved to $path"
 
 # Supporting function to get SPF DNS Lookup Count
 function Resolve-SPFRecord {

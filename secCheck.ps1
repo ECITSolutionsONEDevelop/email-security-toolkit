@@ -70,7 +70,7 @@ if (-not (Test-Path -Path "C:\temp")) {
 $currentDateTime = Get-Date -Format "HH-mm-dd-MM-yyyy"
 $path = "C:\temp\$tenantId-emailsec-status-$currentDateTime.csv"
 $domainSecList | Export-Csv -Path $path -NoTypeInformation
-Write-Output "Report has been generated and saved to $path"
+Write-Output "Email security report from MS365 domains has been generated and saved to $path"
 
 # Supporting function to get SPF DNS Lookup Count
 function Resolve-SPFRecord {

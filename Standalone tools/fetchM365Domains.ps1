@@ -18,9 +18,10 @@ $domains | ForEach-Object {
 }
 
 # Export the domain information to a CSV file
-$domainList | Export-Csv -Path "RegisteredDomains.csv" -NoTypeInformation
+$currentDateTime = Get-Date -Format "HH-mm-dd-MM-yyyy"
+$path = "C:\temp\RegisteredDomains-$currentDateTime.csv"
+$domainList | Export-Csv -Path $path -NoTypeInformation
+Write-Output "Domain export report has been generated and saved to $path"
 
 # Disconnect from Microsoft Graph
 Disconnect-MgGraph
-
-Write-Output "Domains have been exported to RegisteredDomains.csv"
