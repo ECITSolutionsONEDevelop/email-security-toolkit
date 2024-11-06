@@ -1,78 +1,4 @@
-# Ensure required modules are installed
-$modules = @("Microsoft.Graph", "DomainHealthChecker")
-foreach ($module in $modules) {
-    if (-not (Get-Module -Name $module -ListAvailable)) {
-        Install-Module -Name $module -Scope CurrentUser -Force -AllowClobber
-    }
-}
-
-# Connect to Microsoft Graph
-Connect-MgGraph -Scopes "Domain.Read.All, Organization.Read.All", "Directory.Read.All" -NoWelcome
-
-# Get the tenant ID
-$tenantId = (Get-MgOrganization).Id
-
-# Fetch all domains
-$domains = Get-MgDomain
-
-# Create an array to hold domain information
-$domainsToCheck = @()
-
-# Populate the array with domain details
-$domains | ForEach-Object {
-    $domainInfo = [PSCustomObject]@{
-        DomainName = $_.Id
-        IsDefault   = $_.IsDefault
-        IsVerified  = $_.IsVerified
-    }
-    $domainsToCheck += $domainInfo
-}
-
-Write-Output "Domains have been fetched from Microsoft 365"
-Disconnect-MgGraph
-
-# Create an array to hold domain security information
-$domainSecList = @()
-
-# Loop through each domain
-$domainsToCheck | ForEach-Object {
-    # Get the domain name
-    $domainName = $_.DomainName
-
-    # Get the domain status (Focus on selector1 for DKIM since thats what Microsoft 365 uses)
-    $secStatus = Invoke-SpfDkimDmarc -DkimSelector "selector1" -Name $domainName
-
-    # Get number of DNS queries for SPF record
-    $dnsQueryCount = Resolve-SPFRecord -Name $domainName | Select-Object -Unique SPFSourceDomain | Measure-Object | Select-Object -ExpandProperty Count
-
-    # Make a new object with the domain name and security status
-    $domainSecInfo = [PSCustomObject]@{
-        DomainName = $domainName
-        IsDefault = $_.IsDefault
-        IsVerified = $_.IsVerified
-        SpfLookupCount = $dnsQueryCount
-        SpfRecord = $secStatus.SpfRecord
-        SpfAdvisory = $secStatus.SpfAdvisory
-        DkimSelector = $secStatus.DkimSelector
-        DkimAdvisory = $secStatus.DkimAdvisory
-        DmarcRecord = $secStatus.DmarcRecord
-        DmarcAdvisory = $secStatus.DmarcAdvisory
-    }
-    $domainSecList += $domainSecInfo
-}
-
-# Check that the output directory exists
-if (-not (Test-Path -Path "C:\temp")) {
-    New-Item -Path "C:\temp" -ItemType Directory
-}
-
-# Export the domain information to a CSV file
-$currentDateTime = Get-Date -Format "HH-mm-dd-MM-yyyy"
-$path = "C:\temp\$tenantId-emailsec-status-$currentDateTime.csv"
-$domainSecList | Export-Csv -Path $path -NoTypeInformation
-Write-Output "Email security report from MS365 domains has been generated and saved to $path"
-
-# Supporting function to get SPF DNS Lookup Count
+# Supporting function to get SPF DNS Lookup Count (Script from line 170)
 function Resolve-SPFRecord {
     [CmdletBinding()]
     param (
@@ -241,3 +167,77 @@ function Resolve-SPFRecord {
 
     }
 }
+
+# Ensure required modules are installed
+$modules = @("Microsoft.Graph", "DomainHealthChecker")
+foreach ($module in $modules) {
+    if (-not (Get-Module -Name $module -ListAvailable)) {
+        Install-Module -Name $module -Scope CurrentUser -Force -AllowClobber
+    }
+}
+
+# Connect to Microsoft Graph
+Connect-MgGraph -Scopes "Domain.Read.All, Organization.Read.All", "Directory.Read.All" -NoWelcome
+
+# Get the tenant ID
+$tenantId = (Get-MgOrganization).Id
+
+# Fetch all domains
+$domains = Get-MgDomain
+
+# Create an array to hold domain information
+$domainsToCheck = @()
+
+# Populate the array with domain details
+$domains | ForEach-Object {
+    $domainInfo = [PSCustomObject]@{
+        DomainName = $_.Id
+        IsDefault   = $_.IsDefault
+        IsVerified  = $_.IsVerified
+    }
+    $domainsToCheck += $domainInfo
+}
+
+Write-Output "Domains have been fetched from Microsoft 365"
+Disconnect-MgGraph
+
+# Create an array to hold domain security information
+$domainSecList = @()
+
+# Loop through each domain
+$domainsToCheck | ForEach-Object {
+    # Get the domain name
+    $domainName = $_.DomainName
+
+    # Get the domain status (Focus on selector1 for DKIM since thats what Microsoft 365 uses)
+    $secStatus = Invoke-SpfDkimDmarc -DkimSelector "selector1" -Name $domainName
+
+    # Get number of DNS queries for SPF record
+    $dnsQueryCount = Resolve-SPFRecord -Name $domainName | Select-Object -Unique SPFSourceDomain | Measure-Object | Select-Object -ExpandProperty Count
+
+    # Make a new object with the domain name and security status
+    $domainSecInfo = [PSCustomObject]@{
+        DomainName = $domainName
+        IsDefault = $_.IsDefault
+        IsVerified = $_.IsVerified
+        SpfLookupCount = $dnsQueryCount
+        SpfRecord = $secStatus.SpfRecord
+        SpfAdvisory = $secStatus.SpfAdvisory
+        DkimSelector = $secStatus.DkimSelector
+        DkimAdvisory = $secStatus.DkimAdvisory
+        DmarcRecord = $secStatus.DmarcRecord
+        DmarcAdvisory = $secStatus.DmarcAdvisory
+    }
+    $domainSecList += $domainSecInfo
+}
+
+# Check that the output directory exists
+if (-not (Test-Path -Path "C:\temp")) {
+    New-Item -Path "C:\temp" -ItemType Directory
+}
+
+# Export the domain information to a CSV file
+$currentDateTime = Get-Date -Format "HH-mm-dd-MM-yyyy"
+$path = "C:\temp\$tenantId-emailsec-status-$currentDateTime.csv"
+$domainSecList | Export-Csv -Path $path -NoTypeInformation
+Write-Output "Email security report from MS365 domains has been generated and saved to $path"

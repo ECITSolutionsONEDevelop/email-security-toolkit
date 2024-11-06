@@ -1,57 +1,4 @@
-# Check that required module "DomainHealthChecker" is installed or install it
-if (-not (Get-Module -Name DomainHealthChecker -ListAvailable)) {
-    Install-Module -Name DomainHealthChecker -Scope CurrentUser -Force -AllowClobber
-}
-
-Write-Host "Required CSV Format is: DomainName,IsDefault,IsVerified"
-Write-Host "Valuetypes is: DomainName=FQDN/String,IsDefault=Boolean,IsVerified=Boolean"
-$filePath = Read-Host "Please enter path to CSV file following the required format"
-
-# Import CSV with format DomainName,IsDefault,IsVerified
-$domainsToCheck = Import-Csv -Path $filePath
-
-# Create an array to hold domain security information
-$domainSecList = @()
-
-# Loop through each domain
-$domainsToCheck | ForEach-Object {
-    # Get the domain name
-    $domainName = $_.DomainName
-
-    # Get the domain status (Focus on selector1 for DKIM since thats what Microsoft 365 uses)
-    $secStatus = Invoke-SpfDkimDmarc -DkimSelector "selector1" -Name $domainName
-
-    # Get number of DNS queries for SPF record
-    $dnsQueryCount = Resolve-SPFRecord -Name $domainName | Select-Object -Unique SPFSourceDomain | Measure-Object | Select-Object -ExpandProperty Count
-
-    # Make a new object with the domain name and security status
-    $domainSecInfo = [PSCustomObject]@{
-        DomainName = $domainName
-        IsDefault = $_.IsDefault
-        IsVerified = $_.IsVerified
-        SpfLookupCount = $dnsQueryCount
-        SpfRecord = $secStatus.SpfRecord
-        SpfAdvisory = $secStatus.SpfAdvisory
-        DkimSelector = $secStatus.DkimSelector
-        DkimAdvisory = $secStatus.DkimAdvisory
-        DmarcRecord = $secStatus.DmarcRecord
-        DmarcAdvisory = $secStatus.DmarcAdvisory
-    }
-    $domainSecList += $domainSecInfo
-}
-
-# Check that the output directory exists
-if (-not (Test-Path -Path "C:\temp")) {
-    New-Item -Path "C:\temp" -ItemType Directory
-}
-
-# Export the domain information to a CSV file
-$currentDateTime = Get-Date -Format "HH-mm-dd-MM-yyyy"
-$path = "C:\temp\emailsec-status-$currentDateTime.csv"
-$domainSecList | Export-Csv -Path $path -NoTypeInformation
-Write-Output "Email Security Status report has been generated and saved to $path"
-
-# Supporting function to get SPF DNS Lookup Count
+# Supporting function to get SPF DNS Lookup Count (Script from line 170)
 function Resolve-SPFRecord {
     [CmdletBinding()]
     param (
@@ -119,7 +66,7 @@ function Resolve-SPFRecord {
         elseif ( $SPFCount -ge 2 ) {
             # Multiple DNS Records are not allowed
             # https://tools.ietf.org/html/rfc7208#section-3.2
-            write-verbose "There is more than one SPF for domain `"$Name`""
+            write-verbose "There is more than one SPF for domain `"$Name`"" -Verbose
         }
         else {
             # Multiple Strings in a Single DNS Record
@@ -220,3 +167,56 @@ function Resolve-SPFRecord {
 
     }
 }
+
+# Check that required module "DomainHealthChecker" is installed or install it
+if (-not (Get-Module -Name DomainHealthChecker -ListAvailable)) {
+    Install-Module -Name DomainHealthChecker -Scope CurrentUser -Force -AllowClobber
+}
+
+Write-Host "Required CSV Format is: DomainName,IsDefault,IsVerified"
+Write-Host "Valuetypes is: DomainName=FQDN/String,IsDefault=Boolean,IsVerified=Boolean"
+$filePath = Read-Host "Please enter path to CSV file following the required format"
+
+# Import CSV with format DomainName,IsDefault,IsVerified
+$domainsToCheck = Import-Csv -Path $filePath
+
+# Create an array to hold domain security information
+$domainSecList = @()
+
+# Loop through each domain
+$domainsToCheck | ForEach-Object {
+    # Get the domain name
+    $domainName = $_.DomainName
+
+    # Get the domain status (Focus on selector1 for DKIM since thats what Microsoft 365 uses)
+    $secStatus = Invoke-SpfDkimDmarc -DkimSelector "selector1" -Name $domainName
+
+    # Get number of DNS queries for SPF record
+    $dnsQueryCount = Resolve-SPFRecord -Name $domainName | Select-Object -Unique SPFSourceDomain | Measure-Object | Select-Object -ExpandProperty Count
+
+    # Make a new object with the domain name and security status
+    $domainSecInfo = [PSCustomObject]@{
+        DomainName = $domainName
+        IsDefault = $_.IsDefault
+        IsVerified = $_.IsVerified
+        SpfLookupCount = $dnsQueryCount
+        SpfRecord = $secStatus.SpfRecord
+        SpfAdvisory = $secStatus.SpfAdvisory
+        DkimSelector = $secStatus.DkimSelector
+        DkimAdvisory = $secStatus.DkimAdvisory
+        DmarcRecord = $secStatus.DmarcRecord
+        DmarcAdvisory = $secStatus.DmarcAdvisory
+    }
+    $domainSecList += $domainSecInfo
+}
+
+# Check that the output directory exists
+if (-not (Test-Path -Path "C:\temp")) {
+    New-Item -Path "C:\temp" -ItemType Directory
+}
+
+# Export the domain information to a CSV file
+$currentDateTime = Get-Date -Format "HH-mm-dd-MM-yyyy"
+$path = "C:\temp\emailsec-status-$currentDateTime.csv"
+$domainSecList | Export-Csv -Path $path -NoTypeInformation
+Write-Output "Email Security Status report has been generated and saved to $path"
