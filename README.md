@@ -7,3 +7,8 @@ A small, easy to use toolkit to quickly discover exisiting DMARC, SPF and DKIM s
 ```powershell
 C:\> Install-Module DomainHealthChecker
 ```
+
+- Powershell module: Microsoft Graph (For all users)
+```powershell
+C:\> Install-Module Microsoft.Graph -Scope AllUsers -Repository PSGallery -Force
+```
